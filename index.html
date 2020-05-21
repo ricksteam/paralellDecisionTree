@@ -126,13 +126,18 @@
                         let variable = variables[i];
                         variable.min = Number.MAX_VALUE;
                         variable.max = -Number.MAX_VALUE;
+                        variable.allNumbers = [];
                         for (let x = 1; x < variable.support.length; x += 2) {
                             for (let j = 0; j < variable.support[x].length; j++) {
                                 let number = parseFloat(variable.support[x][j]);
                                 if (number < variable.min) variable.min = number;
                                 if (number > variable.max) variable.max = number;
+                                if (!variable.allNumbers.includes(number)) variable.allNumbers.push(number);
                             }
                         }
+                        variable.marginNumbers = [...variable.allNumbers];
+                        variable.marginNumbers.push(variable.min - 1);
+                        variable.marginNumbers.push(variable.max + 1);
 
                     }
 
@@ -177,122 +182,225 @@
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            let lerpX = mapX(variables.length);
-            let lerpY = mapY(data.length);
+            let margin = 100;
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(margin, margin, canvas.width - margin * 2, canvas.height - margin * 2)
 
+            for (let i = 0; i < variables.length; i++) {
+                let side = i%4;
+                var lerp;
 
+                let variable = variables[i];
+                let min = variable.min - 1;
+                let max = variable.max + 1;
 
-
-            for (let col = 0; col < variables.length; col++) {
-                let variable = variables[col];
-                let x = lerpX(col);
-                ctx.strokeStyle = "black";
-                ctx.beginPath();
-                ctx.moveTo(x, margin);
-                ctx.lineTo(x, canvas.height - margin);
-                ctx.stroke();
-
-                let text = variable.name.split(".");
-                for (let i = 0; i < text.length; i++) {
-                    ctx.strokeText(text[i].substr(0, 20), x, 10 + 10 * i);
+                if (side % 2 == 0) {
+                    lerp = y => (y - min) / (max - min) * ((canvas.height - margin) - margin) + margin;
+                }
+                else {
+                    lerp = x => (x - min) / (max - min) * ((canvas.width - margin) - margin) + margin;
 
                 }
 
-            }
-
-            let gap = 10;
-
-            for (let i = 0; i < data.length; i++) {
-                let outputNumber = parseFloat(data[i][1]);
-                let output = outputNumber > .5;
-                let row = data[i];
-                let start = lerpY(i);
-                let stop = lerpY(i + 1);
-                ctx.beginPath();
-                ctx.moveTo(margin, start);
-                ctx.lineTo(canvas.width - margin, start);
-                ctx.moveTo(margin, stop - gap);
-                ctx.lineTo(canvas.width - margin, stop - gap);
-                ctx.stroke();
-
-                //Now lay down the actual data
-
-                for (let v = 0; v < variables.length; v++) {
-                    let variable = variables[v];
-
-                    //Write the variables
-                    ctx.strokeText(variable.min - 1, lerpX(v), start);
-                    ctx.strokeText(variable.max + 1, lerpX(v), stop - gap);
-
-                    let min = variable.min - 1;
-                    let max = variable.max + 1;
-
-                    const lerp = y => (y - min) / (max - min) * ((stop - gap) - start) + start;
-
-                    let one, two;
-
-
-                    ctx.fillStyle = output ? "green" : "red";
-
-                    if (!variable.rows.includes(i)) {
-                        ctx.fillStyle = "yellow";
-                        one = min;
-                        two = max;
+                const _getX = function (side) {
+                    switch (side) {
+                        case 0: return () => margin;
+                        case 1: return x => lerp(x);
+                        case 2: return () => canvas.width - margin;
+                        case 3: return x => lerp(x);
                     }
-                    else {
-                        //Check to see if we have 1 or two entries
-                        let baseString = row[variable.col + 1].trim();
-                        let first = parseFloat(row[variable.col + 2]);
-                        if (variable.len == 5) {
-                            let second = parseFloat(row[variable.col + 4]);
-
-                            if (baseString == "<") {
-                                one = min;
-                                two = first;
-
-                            }
-                            else if (baseString == ">=") {
-                                one = second;
-                                two = max;
-
-                            }
-                            else if (baseString == "is") {
-                                one = first
-                                two = second;
-
-                            }
-                            else {
-                                console.log("Error in base string 5")
-                            }
-                        }
-                        else if (variable.len == 3) {
-                            if (baseString == "<") {
-                                one = min;
-                                two = first;
-
-                            }
-                            else if (baseString == ">=") {
-                                one = first;
-                                two = max;
-
-                            }
-
-                            else {
-                                console.log("Error in base string 3")
-                            }
-                        }
-                        else {
-                            console.log("Error, bad variable length.")
-                        }
-                    }
-
-                    let screenOne = lerp(one);
-                    let screenTwo = lerp(two);
-
-                    ctx.fillRect(lerpX(v), screenOne, 10, screenTwo - screenOne);
                 }
 
+                const _getY = function (side) {
+                    switch (side) {
+                        case 0: return y => lerp(y);
+                        case 1: return () => margin;
+                        case 2: return y => lerp(y);
+                        case 3: return () => canvas.height - margin;
+                    }
+                }
+
+                const _getXClose = function(side){
+                    switch(side%2){
+                        case 0: return ()=>margin;
+                        case 1:return x=>lerp(x);
+                    }
+                }
+
+                const _getYClose = function(side){
+                    switch(side%2){
+                        case 0: return y=>lerp(y);
+                        case 1:return ()=>margin;
+                    }
+                }
+
+                const _getXFar = function(side){
+                    switch(side%2){
+                        case 0: return ()=>canvas.width - margin;
+                        case 1:return x=>lerp(x);
+                    }
+                }
+
+                const _getYFar = function(side){
+                    switch(side%2){
+                        case 0: return y=>lerp(y);
+                        case 1:return ()=>canvas.height-margin;
+                    }
+                }
+
+
+
+                for (let j = 0; j < variable.marginNumbers.length; j++) {
+                    const getX = _getX(side);
+                    const getY = _getY(side);
+                    const getXClose = _getXClose(side);
+                    const getXFar = _getXFar(side);
+                    const getYClose = _getYClose(side);
+                    const getYFar = _getYFar(side);
+
+                    ctx.strokeStyle = "black";
+                    let marginNumber = variable.marginNumbers[j]
+
+                    ctx.strokeText(marginNumber, getX(marginNumber) - 20, getY(marginNumber));
+
+                    ctx.strokeStyle = "gray";
+                    ctx.beginPath();
+                    ctx.moveTo(getXClose(marginNumber), getYClose(marginNumber));
+                    ctx.lineTo(getXFar(marginNumber), getYFar(marginNumber));
+
+                    ctx.stroke();
+                }
+                //ctx.strokeText(min, margin, margin);
+                //ctx.strokeText(max, margin, canvas.height-margin);
+
+
+
+                if (i == 1) break;
             }
+
+            //Now draw the rows
+
+            for(let r = 0; r < data.length; r++){
+                let row = data[r];
+                
+            }
+
+            // let lerpX = mapX(variables.length);
+            // let lerpY = mapY(data.length);
+
+
+
+
+            // for (let col = 0; col < variables.length; col++) {
+            //     let variable = variables[col];
+            //     let x = lerpX(col);
+            //     ctx.strokeStyle = "black";
+            //     ctx.beginPath();
+            //     ctx.moveTo(x, margin);
+            //     ctx.lineTo(x, canvas.height - margin);
+            //     ctx.stroke();
+
+            //     let text = variable.name.split(".");
+            //     for (let i = 0; i < text.length; i++) {
+            //         ctx.strokeText(text[i].substr(0, 20), x, 10 + 10 * i);
+
+            //     }
+
+            // }
+
+            // let gap = 10;
+
+            // for (let i = 0; i < data.length; i++) {
+            //     let outputNumber = parseFloat(data[i][1]);
+            //     let output = outputNumber > .5;
+            //     let row = data[i];
+            //     let start = lerpY(i);
+            //     let stop = lerpY(i + 1);
+            //     ctx.beginPath();
+            //     ctx.moveTo(margin, start);
+            //     ctx.lineTo(canvas.width - margin, start);
+            //     ctx.moveTo(margin, stop - gap);
+            //     ctx.lineTo(canvas.width - margin, stop - gap);
+            //     ctx.stroke();
+
+            //     //Now lay down the actual data
+
+            //     for (let v = 0; v < variables.length; v++) {
+            //         let variable = variables[v];
+
+            //         //Write the variables
+            //         ctx.strokeText(variable.min - 1, lerpX(v), start);
+            //         ctx.strokeText(variable.max + 1, lerpX(v), stop - gap);
+
+            //         let min = variable.min - 1;
+            //         let max = variable.max + 1;
+
+            //         const lerp = y => (y - min) / (max - min) * ((stop - gap) - start) + start;
+
+            //         let one, two;
+
+
+            //         ctx.fillStyle = output ? "green" : "red";
+
+            //         if (!variable.rows.includes(i)) {
+            //             ctx.fillStyle = "yellow";
+            //             one = min;
+            //             two = max;
+            //         }
+            //         else {
+            //             //Check to see if we have 1 or two entries
+            //             let baseString = row[variable.col + 1].trim();
+            //             let first = parseFloat(row[variable.col + 2]);
+            //             if (variable.len == 5) {
+            //                 let second = parseFloat(row[variable.col + 4]);
+
+            //                 if (baseString == "<") {
+            //                     one = min;
+            //                     two = first;
+
+            //                 }
+            //                 else if (baseString == ">=") {
+            //                     one = second;
+            //                     two = max;
+
+            //                 }
+            //                 else if (baseString == "is") {
+            //                     one = first
+            //                     two = second;
+
+            //                 }
+            //                 else {
+            //                     console.log("Error in base string 5")
+            //                 }
+            //             }
+            //             else if (variable.len == 3) {
+            //                 if (baseString == "<") {
+            //                     one = min;
+            //                     two = first;
+
+            //                 }
+            //                 else if (baseString == ">=") {
+            //                     one = first;
+            //                     two = max;
+
+            //                 }
+
+            //                 else {
+            //                     console.log("Error in base string 3")
+            //                 }
+            //             }
+            //             else {
+            //                 console.log("Error, bad variable length.")
+            //             }
+            //         }
+
+            //         let screenOne = lerp(one);
+            //         let screenTwo = lerp(two);
+
+            //         ctx.fillRect(lerpX(v), screenOne, 10, screenTwo - screenOne);
+            //     }
+
+            // }
         }
     </script>
 </head>
