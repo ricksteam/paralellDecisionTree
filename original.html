@@ -4,17 +4,9 @@
 <head>
     <meta charset="utf-8" />
     <title>Canvas</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-    </style>
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"
-        integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/1.0.11/jquery.csv.min.js"
-        integrity="sha256-zGo0JbZ5Sn6wU76MyVL0TrUZUq5GLXaFnMQCe/hSwVI=" crossorigin="anonymous"></script>
+    <link href="style.css" rel="stylesheet" type="text/css">
+    <script src="./jquery.js"></script>
+    <script src="./jquery.csv.min.js"></script>
 
     <script type="text/javascript">
 
@@ -37,52 +29,37 @@
                     for (let inc = 4; inc < data[0].length; inc++) {
                         labels.push("unknown");
                     }
+
+                    //Figure out the type of each column by scanning each
+                    //row for non-empty cells
                     //Find next &
-                    let index = 4;
-                    let lastSeparator = false;
-                    for (let row = 0; row < data.length; row++) {
-                        let unknown = false;
-                        for (let inc = 4; inc < data[row].length; inc++) {
+                    
+                    for (let row = 0; row < data.length && labels.includes("unknown"); row++) {
+                        for (let inc = 0; inc < data[row].length; inc++) {
                             if (labels[inc] != "unknown") continue;
-                            if (lastSeparator) {
-                                labels[inc] = "variable"
-                                lastSeparator = false;
-                                continue;
-                            }
+                            
                             let string = data[row][inc].trim();
-                            if (string == "") {
-                                lastSeparator = false;
-                                unknown = true;
-                                continue;
-                            }
-                            if (string != "&") {
-                                labels[inc] = "variable_data"
-                                lastSeparator = false;
-                            }
+
+                            if (string == "") continue;
+                            if (string != "&") labels[inc] = "variable_data"
                             else {
                                 labels[inc] = "separator";
-                                lastSeparator = true;
+                                labels[inc + 1] = "variable";
                             }
                         }
-                        if (!unknown)
-                            break;
+
                     }
 
-
-                    console.log(data[0]);
-                    console.log(labels);
-
-                    console.log(data[0].map((v, i) => v + "::" + labels[i]))
-
-                    for (let col = 0; col < data[0].length; col++) {
+                    //Generate an array of variables from the list
+                    for (let col = 0; col < labels.length; col++) {
                         if (labels[col] == "variable") {
+                            //Find the first row with data about this variable
                             for (let row = 0; row < data.length; row++) {
                                 let string = data[row][col].trim();
                                 if (string != "") {
                                     variables.push({
                                         name: string,
                                         col,
-
                                     });
                                     break;
                                 }
@@ -95,26 +72,44 @@
                         variable.stop = variables[i + 1].col - 1;
                         variable.len = variable.stop - variable.col;
                     }
+                    //Handle the last variable (which ends at the length of variables)
                     let last = variables.slice(-1)[0];
                     last.stop = data[0].length;
                     last.len = last.stop - last.col;
 
+                    //Add the set of all inequalities and values for each variables
                     for (let i = 0; i < variables.length; i++) {
                         let variable = variables[i];
+
+                        //The list of inequalities and numbers for the variables
                         variable.support = [];
+
+                        //The list of rows that the variable appears on
                         variable.rows = [];
+
+                        //Make support an array of arrays
                         for (let col = variable.col + 1; col < variable.stop; col++) {
                             variable.support.push([]);
                         }
+
+                        //Scan through the cols assigned to each variable
                         for (let col = variable.col + 1; col < variable.stop; col++) {
                             let index = col - (variable.col + 1);
+
+                            //Go through each row and add unique values
                             for (let row = 0; row < data.length; row++) {
                                 let string = data[row][col].trim();
+
+                                //Check to make sure we don't have anything unexpected.
                                 if (string != "to" && string != "is" && string != "<" && string != ">" && string != "<=" && string != ">=" && isNaN(string))
                                     console.log(string);
+
+                                //Only add non-empty values
                                 if (string != "") {
+                                    //Push the row index becaues the row uses this variable
                                     if (!variable.rows.includes(row))
                                         variable.rows.push(row);
+                                    //Push any unique values
                                     if (!variable.support[index].includes(string))
                                         variable.support[index].push(string)
                                 }
@@ -122,6 +117,8 @@
                         }
                     }
 
+
+                    //Find the range of each variable.
                     for (let i = 0; i < variables.length; i++) {
                         let variable = variables[i];
                         variable.min = Number.MAX_VALUE;
@@ -136,12 +133,9 @@
 
                     }
 
-
-
-
                     console.log(variables);
 
-
+                    //Start the render
                     tick();
                 }
             });
@@ -155,6 +149,7 @@
 
 
         function update() {
+            //Adjust the canvas to the size of the window on every tick
             canvas = document.getElementById("canv");
             canvas.style.width = window.innerWidth + "px"
             canvas.style.height = window.innerHeight + "px"
@@ -162,6 +157,7 @@
             canvas.height = window.innerHeight;
         }
 
+        //Functions that generate functions
         let margin = 50;
         function mapX(max) {
             return x => (x) / max * (canvas.width - margin * 2) + margin;
@@ -174,15 +170,15 @@
         function drawCanvas() {
             var ctx = canvas.getContext("2d");
 
+            //Erase the background
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            //Functions that return functions to evenly space out items in X and Y screen space
             let lerpX = mapX(variables.length);
             let lerpY = mapY(data.length);
 
-
-
-
+            //Draw the variables across the top
             for (let col = 0; col < variables.length; col++) {
                 let variable = variables[col];
                 let x = lerpX(col);
