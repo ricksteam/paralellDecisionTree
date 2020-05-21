@@ -13,6 +13,7 @@
         let data;
         let labels = [];
         let variables = [];
+        let slots = [];
         function main() {
 
             $.ajax({
@@ -113,8 +114,85 @@
                         variable.marginNumbers = [...variable.allNumbers];
                         variable.marginNumbers.push(variable.min - 1);
                         variable.marginNumbers.push(variable.max + 1);
+                        variable.marginMin = variable.min - 1;
+                        variable.marginMax = variable.max + 1;
 
                     }
+                    variables.forEach(v => v.marginNumbers = v.marginNumbers.sort());
+
+                    //Now let's see which rows fit into which variable slots
+                    slots = [];
+                    for (let v = 0; v < variables.length; v++) {
+                        let variable = variables[v];
+                        let toAdd = [];
+                        for (let i = 0; i < variable.marginNumbers.length - 1; i++) {
+                            toAdd.push(
+                                {
+                                    name: variable.name,
+                                    min: variable.marginNumbers[i],
+                                    max: variable.marginNumbers[i + 1],
+                                    rows: []
+                                });
+                        }
+                        slots.push(toAdd);
+
+                    }
+
+                    for (let r = 0; r < data.length; r++) {
+                        let row = data[r];
+                        for (let v = 0; v < variables.length; v++) {
+                            let variable = variables[v];
+                            if (!variable.rows.includes(r)) continue;
+                            let min = variable.marginMin;
+                            let max = variable.marginMax;
+
+                            let one, two;
+                            let baseString = row[variable.col + 1].trim();
+                            let first = parseFloat(row[variable.col + 2]);
+                            if (variable.len == 5) {
+                                let second = parseFloat(row[variable.col + 4]);
+
+                                if (baseString == "<") {
+                                    one = min;
+                                    two = first;
+                                }
+                                else if (baseString == ">=") {
+                                    one = second;
+                                    two = max;
+
+                                }
+                                else if (baseString == "is") {
+                                    one = first
+                                    two = second;
+                                }
+                                else console.error("Error in base string 5")
+                            }
+                            else if (variable.len == 3) {
+                                if (baseString == "<") {
+                                    one = min;
+                                    two = first;
+                                }
+                                else if (baseString == ">=") {
+                                    one = first;
+                                    two = max;
+                                }
+                                else console.error("Error in base string 3")
+
+                            }
+                            else console.error("Error, bad variable length.")
+
+                            //Now update the slots appropriately.
+                            let slot = slots[v];
+                            for (let i = 0; i < slot.length; i++) {
+                                let cell = slot[i];
+                                if (one <= cell.min && two >= cell.max)
+                                    cell.rows.push(r);
+                            }
+                        }
+
+                    }
+
+
 
 
 
@@ -151,6 +229,49 @@
             return y => (y) / max * (canvas.height - margin * 2) + margin;
         }
 
+        let variable_stop = 2;
+
+        function slotRecurse(slots, i, depth, xMin, xMax, yMin, yMax, ctx) {
+            if (depth == 0) {
+                let variable = variables[i];
+                let slot = slots[i];
+                //Draw all the slots at this index;
+                let side = i % 4;
+                for (let c = 0; c < slot.length; c++) {
+                    let cell = slot[c]
+                    let globalMin = Math.min(...slot.map(i=>i.min))
+                    let globalMax = Math.max(...slot.map(i=>i.max))
+                    for (let j = 0; j < cell.rows.length; j++) {
+                        let row = data[cell.rows[j]];
+
+                        let lerpX = _mapX(cell.rows.length);
+                        let outputNumber = parseFloat(row[1]);
+                        let output = outputNumber > .5;
+                        
+                        let min = cell.min;
+                        let max = cell.max;
+                        let gap = 10;
+
+                        const lerp = y => (y - globalMin) / (globalMax - globalMin) * (yMax - yMin) + yMin;
+                        const xLerp2 = i=>(i)/(cell.rows.length) * (xMax - xMin) + xMin
+
+                        let lerpY = _mapY(cell.rows.length);
+
+                        let one, two;
+                        let opacity = .5;
+
+                        ctx.fillStyle = output ? `rgba(0, 200, 0, ${opacity})` : `rgba(200, 0, 0, ${opacity})`;
+
+                        
+                        ctx.fillRect(xLerp2(j), lerp(min), (xMax-xMin)/cell.rows.length - gap, lerp(max) - lerp(min));
+                    }
+                }
+
+
+            }
+
+        }
+
         function drawCanvas() {
             var ctx = canvas.getContext("2d");
 
@@ -160,13 +281,24 @@
             ctx.strokeStyle = "black";
             ctx.strokeRect(margin, margin, canvas.width - margin * 2, canvas.height - margin * 2)
 
+
+            let variableOrder = [];
             for (let i = 0; i < variables.length; i++) {
+                variableOrder.push(i);
+            }
+
+            slotRecurse(slots, 0, 0, margin, canvas.width-margin, margin, canvas.height-margin, ctx);
+
+            for (let i = 0; i < variable_stop; i++) {
                 let side = i % 4;
                 var lerp;
 
-                let variable = variables[i];
-                let min = variable.min - 1;
-                let max = variable.max + 1;
+                let variable = variables[variableOrder[i]];
+                let min = variable.marginMin;
+                let max = variable.marginMax;
+
+
+
 
                 if (side % 2 == 0) {
                     lerp = y => (y - min) / (max - min) * ((canvas.height - margin) - margin) + margin;
@@ -244,91 +376,84 @@
 
                     ctx.stroke();
                 }
-                //ctx.strokeText(min, margin, margin);
-                //ctx.strokeText(max, margin, canvas.height-margin);
 
                 const mapX = _mapX(data.length);
 
-                for (let j = 0; j < data.length; j++) {
-                    if (variable.rows.includes(j)) {
-                        ctx.fillStyle = data[j][1] < .5 ? "red" : "green";
-                        // ctx.fillRect(mapX(j), margin, mapX(j + 1) - mapX(j) - 10, canvas.height - margin * 2);
-                    }
-                    let lerpX = _mapX(data.length);
-                    let outputNumber = parseFloat(data[j][1]);
-                    let output = outputNumber > .5;
-                    let row = data[j];
-                    
-                    let min = variable.min - 1;
-                    let max = variable.max + 1;
-                    let gap = 10;
-                    
-                    const lerp = y => (y - min) / (max - min) * ((canvas.height - margin) - margin) + margin;
-                    
-                    let lerpY = _mapY(data.length);
-                   
-                    
-                    let one, two;
 
-                    ctx.fillStyle = output ? "green" : "red";
 
-                    if (!variable.rows.includes(j)) {
-                        ctx.fillStyle = "yellow";
-                        one = min;
-                        two = max;
-                    }
-                    else {
-                        //Check to see if we have 1 or two entries
-                        let baseString = row[variable.col + 1].trim();
-                        let first = parseFloat(row[variable.col + 2]);
-                        if (variable.len == 5) {
-                            let second = parseFloat(row[variable.col + 4]);
 
-                            if (baseString == "<") {
-                                one = min;
-                                two = first;
-
-                            }
-                            else if (baseString == ">=") {
-                                one = second;
-                                two = max;
-
-                            }
-                            else if (baseString == "is") {
-                                one = first
-                                two = second;
-                            }
-                            else {
-                                console.log("Error in base string 5")
-                            }
-                        }
-                        else if (variable.len == 3) {
-                            if (baseString == "<") {
-                                one = min;
-                                two = first;
-                            }
-                            else if (baseString == ">=") {
-                                one = first;
-                                two = max;
-                            }
-
-                            else {
-                                console.log("Error in base string 3")
-                            }
-                        }
-                        else {
-                            console.log("Error, bad variable length.")
-                        }
-                    }
-
-                    let screenOne = lerp(one);
-                    let screenTwo = lerp(two);
-
-                    ctx.fillRect(lerpX(j), screenOne, lerpX(j+1) - lerpX(j) -gap, screenTwo - screenOne);
-                }
-
-                if (i == 0) break;
             }
+
+            // for (let i = 0; i < 1; i++) {
+            //     let variable = variables[i];
+            //     for (let j = 0; j < data.length; j++) {
+
+            //         let lerpX = _mapX(1);
+            //         let outputNumber = parseFloat(data[j][1]);
+            //         let output = outputNumber > .5;
+            //         let row = data[j];
+
+            //         let min = variable.min - 1;
+            //         let max = variable.max + 1;
+            //         let gap = 10;
+
+            //         const lerp = y => (y - min) / (max - min) * ((canvas.height - margin) - margin) + margin;
+
+            //         let lerpY = _mapY(data.length);
+
+            //         let one, two;
+            //         let opacity = 1 / data.length;
+
+            //         ctx.fillStyle = output ? `rgba(0, 200, 0, ${opacity})` : `rgba(200, 0, 0, ${opacity})`;
+
+            //         if (!variable.rows.includes(j)) {
+            //             ctx.fillStyle = "yellow";
+            //             one = min;
+            //             two = max;
+            //         }
+            //         else {
+            //             //Check to see if we have 1 or two entries
+            //             let baseString = row[variable.col + 1].trim();
+            //             let first = parseFloat(row[variable.col + 2]);
+            //             if (variable.len == 5) {
+            //                 let second = parseFloat(row[variable.col + 4]);
+
+            //                 if (baseString == "<") {
+            //                     one = min;
+            //                     two = first;
+            //                 }
+            //                 else if (baseString == ">=") {
+            //                     one = second;
+            //                     two = max;
+
+            //                 }
+            //                 else if (baseString == "is") {
+            //                     one = first
+            //                     two = second;
+            //                 }
+            //                 else console.error("Error in base string 5")
+            //             }
+            //             else if (variable.len == 3) {
+            //                 if (baseString == "<") {
+            //                     one = min;
+            //                     two = first;
+            //                 }
+            //                 else if (baseString == ">=") {
+            //                     one = first;
+            //                     two = max;
+            //                 }
+            //                 else console.error("Error in base string 3")
+
+            //             }
+            //             else console.error("Error, bad variable length.")
+            //         }
+
+            //         let screenOne = lerp(one);
+            //         let screenTwo = lerp(two);
+
+            //         ctx.fillRect(lerpX(0), screenOne, lerpX(1) - lerpX(0) - gap, screenTwo - screenOne);
+            //     }
+            // }
 
             //Now draw the rows
 
