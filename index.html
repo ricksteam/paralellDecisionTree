@@ -250,7 +250,7 @@
 
                         let min = cell.min;
                         let max = cell.max;
-                        let gap = 5;
+                        let gap = 0;
                         let lerp, lerp2;
 
                         if (side == 0) {
@@ -281,10 +281,10 @@
                         ctx.fillStyle = output ? `rgba(0, 200, 0, ${opacity})` : `rgba(200, 0, 0, ${opacity})`;
 
                         if (side == 0) {
-                            ctx.fillRect(lerp2(j), lerp(min), (xMax - xMin) / cell.rows.length - gap, lerp(max) - lerp(min));
+                            ctx.fillRect(lerp2(j)+gap/2, lerp(min)+gap/2, (xMax - xMin) / cell.rows.length - gap, lerp(max) - lerp(min)-gap);
                         }
                         else if (side == 1) {
-                            ctx.fillRect(lerp(min), lerp2(j), lerp(max) - lerp(min), (yMax - yMin) / cell.rows.length - gap);
+                            ctx.fillRect(lerp(min)+gap/2, lerp2(j)+gap/2, lerp(max) - lerp(min)-gap, (yMax - yMin) / cell.rows.length - gap);
 
                         }
                     }
@@ -426,7 +426,7 @@
 
                     ctx.strokeText(marginNumber, getX(marginNumber) - 20, getY(marginNumber));
 
-                    ctx.strokeStyle = "gray";
+                    ctx.strokeStyle = "black";
                     ctx.beginPath();
                     ctx.moveTo(getXClose(marginNumber), getYClose(marginNumber));
                     ctx.lineTo(getXFar(marginNumber), getYFar(marginNumber));
