@@ -236,7 +236,7 @@
                 let variable = variables[i];
                 let slot = slots[i];
                 //Draw all the slots at this index;
-                let side = i % 4;
+                let side = i % 2;
                 for (let c = 0; c < slot.length; c++) {
                     let cell = slot[c]
                     let globalMin = Math.min(...slot.map(i => i.min))
@@ -284,7 +284,7 @@
                             ctx.fillRect(lerp2(j), lerp(min), (xMax - xMin) / cell.rows.length - gap, lerp(max) - lerp(min));
                         }
                         else if (side == 1) {
-                            ctx.fillRect( lerp(min), lerp2(j), lerp(max) - lerp(min), (yMax - yMin) / cell.rows.length - gap );
+                            ctx.fillRect(lerp(min), lerp2(j), lerp(max) - lerp(min), (yMax - yMin) / cell.rows.length - gap);
 
                         }
                     }
@@ -294,7 +294,7 @@
                 //depth != 0 && i < slots.length - 1
                 let slot = slots[i];
                 //Draw all the slots at this index;
-                let side = i % 4;
+                let side = i % 2;
                 for (let c = 0; c < slot.length; c++) {
                     let cell = slot[c]
                     let globalMin = Math.min(...slot.map(i => i.min))
@@ -305,9 +305,21 @@
                     let max = cell.max;
                     let gap = 10;
 
-                    const lerp = y => (y - globalMin) / (globalMax - globalMin) * (yMax - yMin) + yMin;
+                    let lerp;
+                    if (side == 0) {
+                        lerp = y => (y - globalMin) / (globalMax - globalMin) * (yMax - yMin) + yMin;
+                    }
+                    else if(side == 1){
+                        lerp = x => (x - globalMin) / (globalMax - globalMin) * (xMax - xMin) + xMin;
+                    }
 
-                    slotRecurse(slots, i + 1, depth - 1, xMin, xMax, lerp(min), lerp(max), ctx);
+                    if(side == 0){
+                        slotRecurse(slots, i + 1, depth - 1, xMin, xMax, lerp(min), lerp(max), ctx);
+                    }
+                    else if(side == 1){
+                        slotRecurse(slots, i + 1, depth - 1, lerp(min), lerp(max), yMin, yMax, ctx);
+
+                    }
 
                 }
 
@@ -625,7 +637,7 @@
 </head>
 
 <body onload="main()">
-    <input type="text" id="steps" value="1"/>
+    <input type="text" id="steps" value="1" />
     <canvas id="canv"></canvas>
 </body>
 
