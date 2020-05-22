@@ -105,4 +105,78 @@ function getVariables(data, labels) {
 
 }
 
-export { getLabels, getVariables };
+function getSlots(data, labels, variables){
+    let slots = [];
+    for (let v = 0; v < variables.length; v++) {
+        let variable = variables[v];
+        let toAdd = [];
+        for (let i = 0; i < variable.marginNumbers.length - 1; i++) {
+            toAdd.push(
+                {
+                    name: variable.name,
+                    min: variable.marginNumbers[i],
+                    max: variable.marginNumbers[i + 1],
+                    rows: []
+                });
+        }
+        slots.push(toAdd);
+
+    }
+
+    for (let r = 0; r < data.length; r++) {
+        let row = data[r];
+        for (let v = 0; v < variables.length; v++) {
+            let variable = variables[v];
+            if (!variable.rows.includes(r)) continue;
+            let min = variable.marginMin;
+            let max = variable.marginMax;
+
+            let one, two;
+            let baseString = row[variable.col + 1].trim();
+            let first = parseFloat(row[variable.col + 2]);
+            if (variable.len == 5) {
+                let second = parseFloat(row[variable.col + 4]);
+
+                if (baseString == "<") {
+                    one = min;
+                    two = first;
+                }
+                else if (baseString == ">=") {
+                    one = second;
+                    two = max;
+
+                }
+                else if (baseString == "is") {
+                    one = first
+                    two = second;
+                }
+                else console.error("Error in base string 5")
+            }
+            else if (variable.len == 3) {
+                if (baseString == "<") {
+                    one = min;
+                    two = first;
+                }
+                else if (baseString == ">=") {
+                    one = first;
+                    two = max;
+                }
+                else console.error("Error in base string 3")
+
+            }
+            else console.error("Error, bad variable length.")
+
+            //Now update the slots appropriately.
+            let slot = slots[v];
+            for (let i = 0; i < slot.length; i++) {
+                let cell = slot[i];
+                if (one <= cell.min && two >= cell.max)
+                    cell.rows.push(r);
+            }
+        }
+
+    }
+    return slots;
+}
+
+export { getLabels, getVariables, getSlots };

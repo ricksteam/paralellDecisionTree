@@ -6,9 +6,7 @@
     <title>Canvas</title>
     <link href="style.css" rel="stylesheet" type="text/css">
     <script src="./jquery.js"></script>
-    <script src="./jquery.csv.min.js"></script>
-
-    
+    <script src="./jquery.csv.min.js"></script>    
 </head>
 
 <body onload="main()">
@@ -17,7 +15,7 @@
 
     <script type="module" >
 
-        import {getLabels, getVariables} from "./slots.js"
+        import {getLabels, getVariables, getSlots} from "./slots.js"
 
         let data;
         let labels = [];
@@ -38,85 +36,7 @@
 
                     variables = getVariables(data, labels);
 
-                    //Now let's see which rows fit into which variable slots
-                    slots = [];
-                    for (let v = 0; v < variables.length; v++) {
-                        let variable = variables[v];
-                        let toAdd = [];
-                        for (let i = 0; i < variable.marginNumbers.length - 1; i++) {
-                            toAdd.push(
-                                {
-                                    name: variable.name,
-                                    min: variable.marginNumbers[i],
-                                    max: variable.marginNumbers[i + 1],
-                                    rows: []
-                                });
-                        }
-                        slots.push(toAdd);
-
-                    }
-
-                    for (let r = 0; r < data.length; r++) {
-                        let row = data[r];
-                        for (let v = 0; v < variables.length; v++) {
-                            let variable = variables[v];
-                            if (!variable.rows.includes(r)) continue;
-                            let min = variable.marginMin;
-                            let max = variable.marginMax;
-
-                            let one, two;
-                            let baseString = row[variable.col + 1].trim();
-                            let first = parseFloat(row[variable.col + 2]);
-                            if (variable.len == 5) {
-                                let second = parseFloat(row[variable.col + 4]);
-
-                                if (baseString == "<") {
-                                    one = min;
-                                    two = first;
-                                }
-                                else if (baseString == ">=") {
-                                    one = second;
-                                    two = max;
-
-                                }
-                                else if (baseString == "is") {
-                                    one = first
-                                    two = second;
-                                }
-                                else console.error("Error in base string 5")
-                            }
-                            else if (variable.len == 3) {
-                                if (baseString == "<") {
-                                    one = min;
-                                    two = first;
-                                }
-                                else if (baseString == ">=") {
-                                    one = first;
-                                    two = max;
-                                }
-                                else console.error("Error in base string 3")
-
-                            }
-                            else console.error("Error, bad variable length.")
-
-                            //Now update the slots appropriately.
-                            let slot = slots[v];
-                            for (let i = 0; i < slot.length; i++) {
-                                let cell = slot[i];
-                                if (one <= cell.min && two >= cell.max)
-                                    cell.rows.push(r);
-                            }
-                        }
-
-                    }
-
-
-
-
-
-
-                    console.log(variables);
-
+                    slots = getSlots(data, labels, variables);
 
                     tick();
                 }
@@ -185,15 +105,6 @@
                             lerp2 = i => (i) / (cell.rows.length) * (yMax - yMin) + yMin
                         }
 
-                        // if (side == 0) {
-                        //     let lerp3 = _mapY(cell.rows.length);
-                        // }
-                        // else {
-                        //     let lerp3 = _mapX(cell.rows.length);
-
-                        // }
-
-                        let one, two;
                         let opacity = .5;
 
                         ctx.fillStyle = output ? `rgba(0, 200, 0, ${opacity})` : `rgba(200, 0, 0, ${opacity})`;
@@ -211,7 +122,7 @@
             else {
                 //depth != 0 && i < slots.length - 1
                 let slot = slots[i];
-                //Draw all the slots at this index;
+                
                 let side = i % 2;
                 for (let c = 0; c < slot.length; c++) {
                     let cell = slot[c]
