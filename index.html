@@ -232,44 +232,86 @@
         let variable_stop = 2;
 
         function slotRecurse(slots, i, depth, xMin, xMax, yMin, yMax, ctx) {
-            if (depth == 0) {
+            if (depth == 0 || i == slots.length - 1) {
                 let variable = variables[i];
                 let slot = slots[i];
                 //Draw all the slots at this index;
                 let side = i % 4;
                 for (let c = 0; c < slot.length; c++) {
                     let cell = slot[c]
-                    let globalMin = Math.min(...slot.map(i=>i.min))
-                    let globalMax = Math.max(...slot.map(i=>i.max))
+                    let globalMin = Math.min(...slot.map(i => i.min))
+                    let globalMax = Math.max(...slot.map(i => i.max))
                     for (let j = 0; j < cell.rows.length; j++) {
                         let row = data[cell.rows[j]];
 
                         let lerpX = _mapX(cell.rows.length);
                         let outputNumber = parseFloat(row[1]);
                         let output = outputNumber > .5;
-                        
+
                         let min = cell.min;
                         let max = cell.max;
-                        let gap = 10;
+                        let gap = 5;
+                        let lerp, lerp2;
 
-                        const lerp = y => (y - globalMin) / (globalMax - globalMin) * (yMax - yMin) + yMin;
-                        const xLerp2 = i=>(i)/(cell.rows.length) * (xMax - xMin) + xMin
+                        if (side == 0) {
+                            lerp = y => (y - globalMin) / (globalMax - globalMin) * (yMax - yMin) + yMin;
+                        }
+                        else if (side == 1) {
+                            lerp = x => (x - globalMin) / (globalMax - globalMin) * (xMax - xMin) + xMin;
 
-                        let lerpY = _mapY(cell.rows.length);
+                        }
+                        if (side == 0) {
+                            lerp2 = i => (i) / (cell.rows.length) * (xMax - xMin) + xMin
+                        }
+                        else {
+                            lerp2 = i => (i) / (cell.rows.length) * (yMax - yMin) + yMin
+                        }
+
+                        // if (side == 0) {
+                        //     let lerp3 = _mapY(cell.rows.length);
+                        // }
+                        // else {
+                        //     let lerp3 = _mapX(cell.rows.length);
+
+                        // }
 
                         let one, two;
                         let opacity = .5;
 
                         ctx.fillStyle = output ? `rgba(0, 200, 0, ${opacity})` : `rgba(200, 0, 0, ${opacity})`;
 
-                        
-                        ctx.fillRect(xLerp2(j), lerp(min), (xMax-xMin)/cell.rows.length - gap, lerp(max) - lerp(min));
+                        if (side == 0) {
+                            ctx.fillRect(lerp2(j), lerp(min), (xMax - xMin) / cell.rows.length - gap, lerp(max) - lerp(min));
+                        }
+                        else if (side == 1) {
+                            ctx.fillRect( lerp(min), lerp2(j), lerp(max) - lerp(min), (yMax - yMin) / cell.rows.length - gap );
+
+                        }
                     }
                 }
+            }
+            else {
+                //depth != 0 && i < slots.length - 1
+                let slot = slots[i];
+                //Draw all the slots at this index;
+                let side = i % 4;
+                for (let c = 0; c < slot.length; c++) {
+                    let cell = slot[c]
+                    let globalMin = Math.min(...slot.map(i => i.min))
+                    let globalMax = Math.max(...slot.map(i => i.max))
 
+
+                    let min = cell.min;
+                    let max = cell.max;
+                    let gap = 10;
+
+                    const lerp = y => (y - globalMin) / (globalMax - globalMin) * (yMax - yMin) + yMin;
+
+                    slotRecurse(slots, i + 1, depth - 1, xMin, xMax, lerp(min), lerp(max), ctx);
+
+                }
 
             }
-
         }
 
         function drawCanvas() {
@@ -287,7 +329,10 @@
                 variableOrder.push(i);
             }
 
-            slotRecurse(slots, 0, 0, margin, canvas.width-margin, margin, canvas.height-margin, ctx);
+            let steps = document.querySelector("#steps").value;
+            let depth = parseFloat(steps);
+
+            slotRecurse(slots, 0, depth, margin, canvas.width - margin, margin, canvas.height - margin, ctx);
 
             for (let i = 0; i < variable_stop; i++) {
                 let side = i % 4;
@@ -580,6 +625,7 @@
 </head>
 
 <body onload="main()">
+    <input type="text" id="steps" value="1"/>
     <canvas id="canv"></canvas>
 </body>
 
