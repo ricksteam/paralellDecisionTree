@@ -27,7 +27,10 @@
 
             $.ajax({
                 type: "GET",
-                url: "data.csv",
+                // url: "simple0.csv",
+                url: "simple1.csv",
+                // url: "simple2.csv",
+                // url: "data.csv",
                 dataType: "text",
                 success: function (response) {
                     data = $.csv.toArrays(response);
@@ -67,8 +70,7 @@
             return y => (y) / max * (canvas.height - margin * 2) + margin;
         }
 
-        let variable_stop = Math.min(2, variables.length);
-
+        
         function slotRecurse(slots, i, depth, xMin, xMax, yMin, yMax, ctx) {
             if (depth == 0 || i == slots.length - 1) {
                 let variable = variables[i];
@@ -175,7 +177,10 @@
 
             slotRecurse(slots, 0, depth, margin, canvas.width - margin, margin, canvas.height - margin, ctx);
 
-            for (let i = 0; i < variable_stop; i++) {
+            let variable_stop = Math.min(depth, variables.length-1);
+
+
+            for (let i = 0; i <= variable_stop; i++) {
                 let side = i % 4;
                 var lerp;
 
