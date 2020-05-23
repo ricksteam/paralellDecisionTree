@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Canvas</title>
+  <link href="style.css" rel="stylesheet" type="text/css">
+  <script src="./jquery.js"></script>
+  <script src="./jquery.csv.min.js"></script>
+</head>
+
+<body onload="main()">
+  <input type="text" id="steps" value="0" />
+  <canvas id="canv"></canvas>
+
+  <script type="module">
+
+    import { getLabels, getVariables, getSlots } from "./slots.js"
+
+    let data;
+    let labels = [];
+    let variables = [];
+    let slots = [];
+    let canvas;
+    let timerID;
+    function main() {
+
+      $.ajax({
+        type: "GET",
+        // url: "simple0.csv",
+        // url: "simple1.csv",
+        url: "simple2.csv",
+        // url: "data.csv",
+        dataType: "text",
+        success: function (response) {
+          data = $.csv.toArrays(response);
+
+          labels = getLabels(data);
+
+          variables = getVariables(data, labels);
+
+          slots = getSlots(data, labels, variables);
+
+
+          for(let i = 0; i < variables.length; i++){
+            let variable = variables[i];
+            variable.tempRows = [...variable.rows];
+          }
+          let pairs = [];
+          for (let a = 0; a < data.length - 1; a++) {
+            let found = false;
+            let pair1 = -1;
+            let pair2 = -1;
+            let pairingVariable = -1;
+            for (let i = 0; i < data.length && !found; i++) {
+              for (let j = i + 1; j < data.length && !found; j++) {
+                let row1 = data[i];
+                let row2 = data[j];
+
+                let differences = 0;
+                let differenceVariable = -1
+                for (let v = 0; v < variables.length && differences <= 1; v++) {
+                  let variable = variables[v];
+                  //Make sure that this variable contains both rows
+                  if (variable.tempRows.includes(i) != variable.tempRows.includes(j)) {
+                    differences = 2;
+                    break;
+                  }
+                  for (let k = variable.col + 1; k < variable.stop; k++) {
+                    if (row1[k] != row2[k]) {
+                      differences++;
+                      differenceVariable = v;
+                      break;
+                    }
+                  }
+                }
+                if (differences == 1) {
+                  found = true;
+                  pair1 = i;
+                  pair2 = j;
+                  pairingVariable = differenceVariable;
+                  pairs.push({
+                    pair1,
+                    pair2,
+                    pairingVariable
+                  });
+                  variables[pairingVariable].tempRows = variables[pairingVariable].tempRows.filter(n=>n!=pair1 && n!=pair2);
+                  //Now combine them in our data
+                  let variable = variables[pairingVariable];
+                  let start = variable.col;
+                  if(pairingVariable != 0) // Remove &
+                    start --;
+                  for (let k = start; k < variable.stop; k++) {
+                    data[pair1][k] = "";
+                    data[pair2][k] = "";
+                  }
+                }
+              }
+            }
+            if (pair1 != -1) {
+              console.log(`Found pair ${pair1} ${pair2} at ${pairingVariable}`);
+            }
+            else {
+              console.error("Couldn't find anything to pair :(")
+            }
+          }
+          console.log("Done pairing");
+          console.log(JSON.stringify(pairs, null, 2));
+          tick();
+        }
+      });
+    }
+
+    function tick() {
+      update();
+      drawCanvas();
+      timerID = setTimeout(tick, 33);
+    }
+
+
+    function update() {
+      canvas = document.getElementById("canv");
+      canvas.style.width = window.innerWidth + "px"
+      canvas.style.height = window.innerHeight + "px"
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    let margin = 100;
+    function _mapX(max) {
+      return x => (x) / max * (canvas.width - margin * 2) + margin;
+    }
+
+    function _mapY(max) {
+      return y => (y) / max * (canvas.height - margin * 2) + margin;
+    }
+
+
+    function slotRecurse(slots, i, depth, xMin, xMax, yMin, yMax, ctx) {
+      if (depth == 0 || i == slots.length - 1) {
+        let variable = variables[i];
+        let slot = slots[i];
+        //Draw all the slots at this index;
+        let side = i % 2;
+        for (let c = 0; c < slot.length; c++) {
+          let cell = slot[c]
+          let globalMin = Math.min(...slot.map(i => i.min))
+          let globalMax = Math.max(...slot.map(i => i.max))
+          for (let j = 0; j < cell.rows.length; j++) {
+            let row = data[cell.rows[j]];
+
+            let lerpX = _mapX(cell.rows.length);
+            let outputNumber = parseFloat(row[1]);
+            let output = outputNumber > .5;
+
+            let min = cell.min;
+            let max = cell.max;
+            let gap = 10;
+            let lerp, lerp2;
+
+            if (side == 0) {
+              lerp = y => (y - globalMin) / (globalMax - globalMin) * (yMax - yMin) + yMin;
+            }
+            else if (side == 1) {
+              lerp = x => (x - globalMin) / (globalMax - globalMin) * (xMax - xMin) + xMin;
+
+            }
+            if (side == 0) {
+              lerp2 = i => (i) / (cell.rows.length) * (xMax - xMin) + xMin
+            }
+            else {
+              lerp2 = i => (i) / (cell.rows.length) * (yMax - yMin) + yMin
+            }
+
+            let opacity = .5;
+
+            ctx.fillStyle = output ? `rgba(0, 200, 0, ${opacity})` : `rgba(200, 0, 0, ${opacity})`;
+
+            if (side == 0) {
+              ctx.fillRect(lerp2(j) + gap / 2, lerp(min) + gap / 2, (xMax - xMin) / cell.rows.length - gap, lerp(max) - lerp(min) - gap);
+            }
+            else if (side == 1) {
+              ctx.fillRect(lerp(min) + gap / 2, lerp2(j) + gap / 2, lerp(max) - lerp(min) - gap, (yMax - yMin) / cell.rows.length - gap);
+
+            }
+          }
+        }
+      }
+      else {
+        //depth != 0 && i < slots.length - 1
+        let slot = slots[i];
+
+        let side = i % 2;
+        for (let c = 0; c < slot.length; c++) {
+          let cell = slot[c]
+          let globalMin = Math.min(...slot.map(i => i.min))
+          let globalMax = Math.max(...slot.map(i => i.max))
+
+
+          let min = cell.min;
+          let max = cell.max;
+          let gap = 10;
+
+          let lerp;
+          if (side == 0) {
+            lerp = y => (y - globalMin) / (globalMax - globalMin) * (yMax - yMin) + yMin;
+          }
+          else if (side == 1) {
+            lerp = x => (x - globalMin) / (globalMax - globalMin) * (xMax - xMin) + xMin;
+          }
+
+          if (side == 0) {
+            slotRecurse(slots, i + 1, depth - 1, xMin, xMax, lerp(min), lerp(max), ctx);
+          }
+          else if (side == 1) {
+            slotRecurse(slots, i + 1, depth - 1, lerp(min), lerp(max), yMin, yMax, ctx);
+
+          }
+
+        }
+
+      }
+    }
+
+    function drawCanvas() {
+      var ctx = canvas.getContext("2d");
+
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = "black";
+      ctx.strokeRect(margin, margin, canvas.width - margin * 2, canvas.height - margin * 2)
+
+
+      let variableOrder = [];
+      for (let i = 0; i < variables.length; i++) {
+        variableOrder.push(i);
+      }
+
+      let steps = document.querySelector("#steps").value;
+      let depth = parseFloat(steps);
+
+      slotRecurse(slots, 0, depth, margin, canvas.width - margin, margin, canvas.height - margin, ctx);
+
+      let variable_stop = Math.min(depth, variables.length - 1);
+
+
+      for (let i = 0; i <= variable_stop; i++) {
+        let side = i % 4;
+        var lerp;
+
+        let variable = variables[variableOrder[i]];
+        let min = variable.marginMin;
+        let max = variable.marginMax;
+
+
+
+
+        if (side % 2 == 0) {
+          lerp = y => (y - min) / (max - min) * ((canvas.height - margin) - margin) + margin;
+        }
+        else {
+          lerp = x => (x - min) / (max - min) * ((canvas.width - margin) - margin) + margin;
+
+        }
+
+        const _getX = function (side) {
+          switch (side) {
+            case 0: return () => margin;
+            case 1: return x => lerp(x);
+            case 2: return () => canvas.width - margin;
+            case 3: return x => lerp(x);
+          }
+        }
+
+        const _getY = function (side) {
+          switch (side) {
+            case 0: return y => lerp(y);
+            case 1: return () => margin;
+            case 2: return y => lerp(y);
+            case 3: return () => canvas.height - margin;
+          }
+        }
+
+        const _getXClose = function (side) {
+          switch (side % 2) {
+            case 0: return () => margin;
+            case 1: return x => lerp(x);
+          }
+        }
+
+        const _getYClose = function (side) {
+          switch (side % 2) {
+            case 0: return y => lerp(y);
+            case 1: return () => margin;
+          }
+        }
+
+        const _getXFar = function (side) {
+          switch (side % 2) {
+            case 0: return () => canvas.width - margin;
+            case 1: return x => lerp(x);
+          }
+        }
+
+        const _getYFar = function (side) {
+          switch (side % 2) {
+            case 0: return y => lerp(y);
+            case 1: return () => canvas.height - margin;
+          }
+        }
+
+
+
+        const getX = _getX(side);
+        const getY = _getY(side);
+        const getXClose = _getXClose(side);
+        const getXFar = _getXFar(side);
+        const getYClose = _getYClose(side);
+        const getYFar = _getYFar(side);
+        for (let j = 0; j < variable.marginNumbers.length; j++) {
+
+          ctx.strokeStyle = "black";
+          let marginNumber = variable.marginNumbers[j]
+
+          ctx.strokeText(marginNumber, getX(marginNumber) - 20, getY(marginNumber));
+
+          ctx.strokeStyle = "black";
+          ctx.beginPath();
+          ctx.moveTo(getXClose(marginNumber), getYClose(marginNumber));
+          ctx.lineTo(getXFar(marginNumber), getYFar(marginNumber));
+
+          ctx.stroke();
+        }
+
+        const mapX = _mapX(data.length);
+      }
+    }
+
+    window.main = main;
+  </script>
+</body>
+
+</html>
