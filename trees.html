@@ -31,8 +31,8 @@
         // url: "simple0.csv",
         // url: "simple1.csv",
         // url: "simple2.csv",
-        url: "simple3.csv",
-        // url: "data.csv",
+        // url: "simple3.csv",
+         url: "data.csv",
         dataType: "text",
         success: function (response) {
           data = $.csv.toArrays(response);
@@ -65,6 +65,10 @@
               for (let j = i + 1; j < data.length && !found; j++) {
                 let row2 = data[j];
                 if (row2.combined) continue;
+
+                if(i == 4 && j == 25){
+                  console.log("break")
+                }
 
                 let differences = 0;
                 let differenceVariable = -1
@@ -261,14 +265,14 @@
             }
             if (pair1 != -1) {
               console.log(`Found pair ${pair1} ${pair2} at ${pairingVariable}`);
-              data.filter(d=>!d.combined).forEach(d=>console.log(d.join(",")))
+              // data.filter(d=>!d.combined).forEach(d=>console.log(d.join(",")))
             }
             else {
               console.error("Couldn't find anything to pair :(")
             }
           }
           console.log("Done pairing");
-          console.log(JSON.stringify(pairs, null, 2));
+          //console.log(JSON.stringify(pairs, null, 2));
           tick();
         }
       });
