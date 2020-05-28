@@ -29,7 +29,8 @@
         type: "GET",
         // url: "simple0.csv",
         // url: "simple1.csv",
-        url: "simple2.csv",
+        // url: "simple2.csv",
+        url: "simple3.csv",
         // url: "data.csv",
         dataType: "text",
         success: function (response) {
@@ -39,10 +40,12 @@
 
           variables = getVariables(data, labels);
 
+          console.log(variables.map(v => v.allNumbers));
+
           slots = getSlots(data, labels, variables);
 
 
-          for(let i = 0; i < variables.length; i++){
+          for (let i = 0; i < variables.length; i++) {
             let variable = variables[i];
             variable.tempRows = [...variable.rows];
           }
@@ -66,13 +69,86 @@
                     differences = 2;
                     break;
                   }
-                  for (let k = variable.col + 1; k < variable.stop; k++) {
-                    if (row1[k] != row2[k]) {
-                      differences++;
-                      differenceVariable = v;
-                      break;
+                  if (variable.len == 2) {
+                    //There are no is..to variables, so it's easy
+                    for (let k = variable.col + 1; k < variable.stop; k++) {
+                      if (row1[k] != row2[k]) {
+                        differences++;
+                        differenceVariable = v;
+                        continue;
+                      }
                     }
                   }
+                  else {
+                    //We have to deal with is..to variables
+                    if (row1[variable.col + 1] != "is" && row2[variable.col + 1] != "is") {
+                      //Same method as length 2, no is...to variables
+                      for (let k = variable.col + 1; k < variable.stop; k++) {
+                        if (row1[k] != row2[k]) {
+                          differences++;
+                          differenceVariable = v;
+                          continue;
+                        }
+                      }
+                    }
+                    else {
+                      //We have at least one is...to variable
+                      if (row1[variable.col + 1] == "is" && row2[variable.col + 1] == "is") {
+                        //They both match
+                        if (row1[variable.col + 2] == row2[variable.col + 2] && row1[variable.col + 4] == row2[variable.col + 4]) {
+                          //There is no difference, move along
+                          continue;
+                        }
+                        else {
+                          //There is at least one difference
+                          if (row1[variable.col + 2] == row2[variable.col + 4] || row2[variable.col + 2] == row1[variable.col + 4]) {
+                            //They touch each other
+                            differences++;
+                            differenceVariable = v;
+                            continue;
+                          }
+                          else{
+                            //They don't touch
+                            differences = 2;
+                            break;
+                          }
+                        }
+                      }
+                      else {
+                        //Only one is...to variable
+                        //We need to make sure they "touch"
+                        let comparator;//Points to < or >=
+                        let bounded;//Points to is...to
+                        if (row1[variable.col + 1] == "is") {
+                          comparator = row2;
+                          bounded = row1;
+                        }
+                        else {
+                          comparator = row1;
+                          bounded = row2;
+                        }
+
+                        if (comparator[variable.col + 1] == "<" && comparator[variable.col + 2] == bounded[variable.col + 2]) {
+                          differences++
+                          differenceVariable = v;
+                          continue;
+                        }
+                        else if (comparator[variable.col + 1] == ">=" && comparator[variable.col + 4] == bounded[variable.col + 4]) {
+                          differences++;
+                          differenceVariable = v;
+                          continue;
+                        }
+                        else {
+                          //It's not a match
+                          differences = 2;
+                          break;
+                        }
+
+                      }
+
+                    }
+                  }
+
                 }
                 if (differences == 1) {
                   found = true;
@@ -84,12 +160,12 @@
                     pair2,
                     pairingVariable
                   });
-                  variables[pairingVariable].tempRows = variables[pairingVariable].tempRows.filter(n=>n!=pair1 && n!=pair2);
+                  variables[pairingVariable].tempRows = variables[pairingVariable].tempRows.filter(n => n != pair1 && n != pair2);
                   //Now combine them in our data
                   let variable = variables[pairingVariable];
                   let start = variable.col;
-                  if(pairingVariable != 0) // Remove &
-                    start --;
+                  if (pairingVariable != 0) // Remove &
+                    start--;
                   for (let k = start; k < variable.stop; k++) {
                     data[pair1][k] = "";
                     data[pair2][k] = "";
