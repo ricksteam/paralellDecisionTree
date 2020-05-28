@@ -48,6 +48,13 @@
           data.forEach(d => d.combined = false);
           let originalData = JSON.parse(JSON.stringify(data));
 
+          let trimData = [];
+          for(let i= 0; i < data.length; i++){
+            let toAdd = data[i].map(x=>x.trim());
+            trimData.push(toAdd);
+          }
+          data = trimData;
+
 
           for (let i = 0; i < variables.length; i++) {
             let variable = variables[i];
