@@ -44,6 +44,8 @@
 
           slots = getSlots(data, labels, variables);
 
+          data.forEach(d=>d.combined = false);
+
 
           for (let i = 0; i < variables.length; i++) {
             let variable = variables[i];
@@ -56,9 +58,11 @@
             let pair2 = -1;
             let pairingVariable = -1;
             for (let i = 0; i < data.length && !found; i++) {
+              let row1 = data[i];
+              if(row1.combined) continue;
               for (let j = i + 1; j < data.length && !found; j++) {
-                let row1 = data[i];
                 let row2 = data[j];
+                if(row2.combined) continue;
 
                 let differences = 0;
                 let differenceVariable = -1
@@ -170,6 +174,7 @@
                     data[pair1][k] = "";
                     data[pair2][k] = "";
                   }
+                  row2.combined = true;
                 }
               }
             }
