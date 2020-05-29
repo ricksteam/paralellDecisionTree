@@ -34,7 +34,8 @@
         // url: "simple1.csv",
         // url: "simple2.csv",
         // url: "simple3.csv",
-        url: "data.csv",
+        url: "medium.csv",
+        // url: "data.csv",
         dataType: "text",
         success: function (response) {
           data = $.csv.toArrays(response);
@@ -280,7 +281,7 @@
             }
           }
           console.log("Done pairing");
-          //console.log(JSON.stringify(pairs, null, 2));
+          console.log(JSON.stringify(pairs, null, 2));
           tick();
         }
       });
@@ -428,8 +429,8 @@
         let drawThem = [true, true];
 
         if (row1.dx == -1 && row1.dy == -1) {
-          px1 = maxX + boxSize*2;
-          maxX += boxSize*2;
+          px1 = maxX + boxSize * 2;
+          maxX += boxSize * 2;
           py1 = canvas.height - 100;
         }
         else {
@@ -439,7 +440,7 @@
         }
 
         if (row2.dx == -1 && row2.dy == -1) {
-          px2 = maxX + boxSize*2
+          px2 = maxX + boxSize * 2
           py2 = canvas.height - 100;
         }
         else {
@@ -470,6 +471,7 @@
           let startY = py[j == 0 ? 0 : 2];
           if (drawThem[j])
             ctx.fillRect(startX, startY, boxSize, boxSize);
+          ctx.strokeText(row[1], startX, startY)
         }
         ctx.beginPath();
 
@@ -483,14 +485,52 @@
         let variableIndex = pairs[i].pairingVariable
         let variable = variables[variableIndex];
         let variableSplit = "";
-        let comparator = row1[variable.col + 1].trim();
-        if (comparator == "<") variableSplit = +row1[variable.col + 2]
-        else if (comparator == ">=") variable.split = +row1[variable.col + 4];
-        else
-          console.log("oops");
+        if (variable.len == 3) {
+          variableSplit = +row1[variable.col + 2];
+        }
+        else {
+          let comparator1 = row1[variable.col + 1].trim();
+          let comparator2 = row2[variable.col + 1].trim();
+          if (comparator1 != "is" && comparator2 != "is") {
+            if (comparator1 == "<") variableSplit = +row1[variable.col + 2]
+            else if (comparator1 == ">=") variableSplit = +row1[variable.col + 4]
+          }
+          else {
+            //Deal with is...to
+            if (comparator1 == "is" && comparator2 == "is") {
+              let isTo = [];
+              isTo.push(+row1[variable.col + 2])
+              isTo.push(+row1[variable.col + 4])
+              isTo.push(+row2[variable.col + 2])
+              isTo.push(+row2[variable.col + 4])
+              isTo.sort();
+              //The middle value is now in the middle
+              if (isTo[1] != isTo[2])
+                console.log("oops");
+              variableSplit = isTo[1];
+            }
+            else {
+              //only one isTo
+              let comparator;
+              let bounded;
+              if (comparator1 == "is") {
+                comparator = row2;
+                bounded = row1;
+              }
+              else {
+                comparator = row1;
+                bounded = row2;
+              }
+
+              if (comparator == "<") variableSplit = comparator[variable.col + 2];
+              else variableSplit = comparator[variable.col + 4];
+            }
+          }
+        }
+        // console.log("oops");
 
         ctx.strokeText(variableIndex, centerX, pmid + 15);
-        ctx.strokeText(variableSplit, centerX-5, pmid + 30);
+        ctx.strokeText(variableSplit, centerX - 5, pmid + 30);
         ctx.strokeText("<", centerX - 15, pmid + 30);
         ctx.strokeText(">=", centerX + 15, pmid + 30);
 
@@ -499,9 +539,9 @@
         row2.dx = centerX;
         row2.dy = pmid;
 
-       
-        if(drawThem[0] || drawThem[1])
-        maxX = Math.max(...[maxX, px2, px1]);
+
+        if (drawThem[0] || drawThem[1])
+          maxX = Math.max(...[maxX, px2, px1]);
         minY = Math.min(minY, pmid);
 
 
