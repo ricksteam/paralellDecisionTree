@@ -1,0 +1,10 @@
+n= 150 
+
+node), split, n, loss, yval, (yprob)
+      * denotes terminal node
+
+1) root 150 100 setosa (0.33333333 0.33333333 0.33333333)  
+  2) Petal.Length< 2.45 50   0 setosa (1.00000000 0.00000000 0.00000000) *
+  3) Petal.Length>=2.45 100  50 versicolor (0.00000000 0.50000000 0.50000000)  
+    6) Petal.Width< 1.75 54   5 versicolor (0.00000000 0.90740741 0.09259259) *
+    7) Petal.Width>=1.75 46   1 virginica (0.00000000 0.02173913 0.97826087) *

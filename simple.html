@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>Page Title</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' type='text/css' media='screen' href='simple.css'>
+</head>
+<body>
+    <canvas id="canv"></canvas>
+    <script src="./jquery.js"></script>
+    <script type='module'>
+
+        import simple from "./simple.js"
+
+        let root;
+        let canvas;
+    
+
+        jQuery.get('./test/test.txt', function(data){
+            //console.log(data);
+            let lines = simple.extract(data)
+            root = simple.parse(data)
+
+            tick();
+        })
+
+        function tick() {
+            update();
+            drawCanvas();
+            setTimeout(tick, 33);
+        }
+
+
+        function update() {
+            //Adjust the canvas to the size of the window on every tick
+            canvas = document.getElementById("canv");
+            canvas.style.width = window.innerWidth + "px"
+            canvas.style.height = window.innerHeight + "px"
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        let margin = 50;
+        function mapX(max) {
+            return x => (x) / max * (canvas.width - margin * 2) + margin;
+        }
+
+        function mapY(max) {
+            return y => (y) / max * (canvas.height - margin * 2) + margin;
+        }
+
+
+        let mx, my;
+        function drawCanvas() {
+            var ctx = canvas.getContext("2d");
+
+            //Erase the background
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            let min = 0;
+            let max = root.stop;
+            mx = mapX(1);
+            my = mapY(simple.maxDepth(root))
+            
+            draw(root, 0, 1, ctx);
+        }
+
+        function draw(node, sx, ex, ctx){
+            ctx.strokeFill = "black";
+            let margin = 40;
+            let half = (sx+ex)/2;
+            let startX = mx(half);
+            let startY = my(node.depth);
+            ctx.strokeRect(startX-margin/2, startY-margin/2, margin, margin )
+            ctx.strokeText(node.value.trim().substr(0,3), startX, startY)
+            if(node.children.length == 2){
+                draw(node.children[0],sx,half,ctx);
+                draw(node.children[1],half,ex,ctx);
+
+            }
+        }
+
+    </script>
+    
+</body>
+</html>
